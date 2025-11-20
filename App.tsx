@@ -343,6 +343,10 @@ const App: React.FC = () => {
     );
   };
 
+  const handleDeselectAll = () => {
+    setSelectedSubtitleIds([]);
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -619,6 +623,10 @@ const App: React.FC = () => {
                     e.preventDefault();
                     setSelectedSubtitleIds(subtitles.map(s => s.id));
                     break;
+                case 'd':
+                    e.preventDefault();
+                    handleDeselectAll();
+                    break;
                 case 'c':
                     e.preventDefault();
                     const lastSelected = subtitles.find(s => s.id === lastSelectedId);
@@ -650,7 +658,7 @@ const App: React.FC = () => {
     return () => {
         document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [subtitles, lastSelectedId, clipboard, selectedSubtitleIds]);
+  }, [subtitles, lastSelectedId, clipboard, selectedSubtitleIds, handleDeselectAll]);
 
 
 
@@ -757,6 +765,7 @@ const App: React.FC = () => {
                     onUpdateSubtitle={handleUpdateSubtitle}
                     selectedIds={selectedSubtitleIds}
                     onSelect={handleSelect}
+                    onDeselectAll={handleDeselectAll}
                 />
             </div>
 

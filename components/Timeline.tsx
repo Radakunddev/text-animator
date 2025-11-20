@@ -9,6 +9,7 @@ interface TimelineProps {
   onUpdateSubtitle: (id: string, newText: string) => void;
   selectedIds: string[];
   onSelect: (id: string, meta: { shift: boolean; ctrl: boolean }) => void;
+  onDeselectAll: () => void;
 }
 
 const formatTimeShort = (seconds: number) => {
