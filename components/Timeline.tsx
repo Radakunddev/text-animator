@@ -7,8 +7,8 @@ interface TimelineProps {
   currentTime: number;
   onSeek: (time: number) => void;
   onUpdateSubtitle: (id: string, newText: string) => void;
-  selectedId: string | null;
-  onSelect: Dispatch<SetStateAction<string | null>>;
+  selectedIds: string[];
+  onSelect: (id: string, meta: { shift: boolean; ctrl: boolean }) => void;
 }
 
 const formatTimeShort = (seconds: number) => {
@@ -18,7 +18,7 @@ const formatTimeShort = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}.${ms}`;
 };
 
-const Timeline: React.FC<TimelineProps> = ({ subtitles, currentTime, onSeek, onUpdateSubtitle, selectedId, onSelect }) => {
+const Timeline: React.FC<TimelineProps> = ({ subtitles, currentTime, onSeek, onUpdateSubtitle, selectedIds, onSelect }) => {
   const activeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -60,15 +60,15 @@ const Timeline: React.FC<TimelineProps> = ({ subtitles, currentTime, onSeek, onU
         {subtitles.map((sub, index) => {
           const isActive = activeIds.includes(sub.id);
           const isFirstActive = sub.id === firstActiveId;
-          const isSelected = sub.id === selectedId;
+          const isSelected = selectedIds.includes(sub.id);
           
           return (
             <div 
               key={sub.id}
               ref={isFirstActive ? activeRef : null}
-              onClick={() => {
+              onClick={(e) => {
                 onSeek(sub.startTime);
-                onSelect(selectedId === sub.id ? null : sub.id);
+                onSelect(sub.id, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey });
               }}
               className={`group relative p-3 rounded-lg border transition-all cursor-pointer ${
                 isSelected

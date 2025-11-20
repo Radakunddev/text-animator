@@ -8,6 +8,7 @@ import { Upload, Play, Pause, Download, FileText, RefreshCw, Move } from './comp
 import ControlPanel from './components/ControlPanel';
 import Timeline from './components/Timeline';
 import Sequencer from './components/Sequencer';
+import PropertiesPanel from './components/PropertiesPanel';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const DEFAULT_SETTINGS: AnimationSettings = {
@@ -163,7 +164,7 @@ const App: React.FC = () => {
 
   // Transform Tool State
   const [isTransformMode, setIsTransformMode] = useState(false);
-  const [selectedSubtitleId, setSelectedSubtitleId] = useState<string | null>(null);
+  const [selectedSubtitleIds, setSelectedSubtitleIds] = useState<string[]>([]);
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9');
   
   // Track which subtitle we are actively dragging
@@ -291,6 +292,35 @@ const App: React.FC = () => {
     setSubtitles(prev => prev.map(s => s.id === id ? { ...s, text: newText } : s));
   };
 
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+
+  const handleSelect = (id: string, meta: { shift: boolean, ctrl: boolean }) => {
+    setLastSelectedId(id);
+
+    if (meta.ctrl) {
+        // Toggle selection
+        setSelectedSubtitleIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    } else if (meta.shift && lastSelectedId) {
+        // Select range
+        const lastIndex = subtitles.findIndex(s => s.id === lastSelectedId);
+        const currentIndex = subtitles.findIndex(s => s.id === id);
+        if (lastIndex === -1 || currentIndex === -1) {
+            setSelectedSubtitleIds([id]);
+            return;
+        }
+
+        const start = Math.min(lastIndex, currentIndex);
+        const end = Math.max(lastIndex, currentIndex);
+        const rangeIds = subtitles.slice(start, end + 1).map(s => s.id);
+        setSelectedSubtitleIds(rangeIds);
+    } else {
+        // Normal click
+        setSelectedSubtitleIds([id]);
+    }
+  };
+
   const handleTimingUpdate = (id: string, newStart: number, newEnd: number) => {
       setSubtitles(prev => prev.map(s => s.id === id ? { ...s, startTime: newStart, endTime: newEnd } : s));
   };
@@ -350,7 +380,7 @@ const App: React.FC = () => {
   }, [currentTime, subtitles]);
 
   // Auto-select active subtitle if nothing is selected, or maintain selection
-  useEffect(() => {
+  /* useEffect(() => {
     if (activeSubtitles.length > 0) {
         // If we have a selection, check if it's still active. If not, or if nothing selected, update
         const isCurrentSelectedActive = activeSubtitles.some(s => s.id === selectedSubtitleId);
@@ -359,7 +389,7 @@ const App: React.FC = () => {
              setSelectedSubtitleId(activeSubtitles[activeSubtitles.length - 1].id);
         }
     }
-  }, [activeSubtitles, selectedSubtitleId, isTransformMode]);
+  }, [activeSubtitles, selectedSubtitleId, isTransformMode]); */
 
 
   const handleHTMLDownload = () => {
@@ -545,6 +575,25 @@ const App: React.FC = () => {
     };
   }, [dragState]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.ctrlKey || e.metaKey) {
+            switch (e.key.toLowerCase()) {
+                case 'a':
+                    e.preventDefault();
+                    setSelectedSubtitleIds(subtitles.map(s => s.id));
+                    break;
+            }
+        }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [subtitles]);
+
+
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -647,8 +696,8 @@ const App: React.FC = () => {
                     currentTime={currentTime} 
                     onSeek={handleSeek}
                     onUpdateSubtitle={handleUpdateSubtitle}
-                    selectedId={selectedSubtitleId}
-                    onSelect={setSelectedSubtitleId}
+                    selectedIds={selectedSubtitleIds}
+                    onSelect={handleSelect}
                 />
             </div>
 
@@ -697,7 +746,7 @@ const App: React.FC = () => {
                                 {/* Subtitle Layers */}
                                 <AnimatePresence>
                                     {activeSubtitles.map((subtitle, index) => {
-                                        const isSelected = subtitle.id === selectedSubtitleId;
+                                        const isSelected = selectedSubtitleIds.includes(subtitle.id);
                                         const x = subtitle.x !== undefined ? subtitle.x : 0;
                                         const y = subtitle.y !== undefined ? subtitle.y : 0;
                                         const scale = subtitle.scale !== undefined ? subtitle.scale : 1;
@@ -724,7 +773,7 @@ const App: React.FC = () => {
                                                 onClick={(e) => {
                                                     if (isTransformMode) {
                                                         e.stopPropagation();
-                                                        setSelectedSubtitleId(subtitle.id);
+                                                        handleSelect(subtitle.id, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey });
                                                     }
                                                 }}
                                             >
@@ -803,6 +852,10 @@ const App: React.FC = () => {
                             onSettingsChange={setSettings} 
                             customFonts={customFonts}
                             onFontUpload={handleFontUpload}
+                        />
+                        <PropertiesPanel
+                            subtitles={subtitles}
+                            selectedSubtitleIds={selectedSubtitleIds}
                         />
                     </div>
 
