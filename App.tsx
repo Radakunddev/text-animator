@@ -164,6 +164,7 @@ const App: React.FC = () => {
   // Transform Tool State
   const [isTransformMode, setIsTransformMode] = useState(false);
   const [selectedSubtitleId, setSelectedSubtitleId] = useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9');
   
   // Track which subtitle we are actively dragging
   const [dragState, setDragState] = useState<{ 
@@ -377,6 +378,24 @@ const App: React.FC = () => {
   const handleVideoExport = async () => {
     if (!exportCanvasRef.current) return;
     const canvas = exportCanvasRef.current;
+
+    // Set canvas dimensions based on aspect ratio
+    const baseRes = 1080;
+    switch (aspectRatio) {
+        case '16:9':
+            canvas.width = 1920;
+            canvas.height = 1080;
+            break;
+        case '9:16':
+            canvas.width = 1080;
+            canvas.height = 1920;
+            break;
+        case '1:1':
+            canvas.width = 1080;
+            canvas.height = 1080;
+            break;
+    }
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -534,6 +553,14 @@ const App: React.FC = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
   };
 
+  const getAspectRatioStyles = (ratio: '16:9' | '9:16' | '1:1') => {
+    switch (ratio) {
+      case '16:9': return 'w-full max-w-3xl aspect-video';
+      case '9:16': return 'h-full aspect-[9/16]';
+      case '1:1': return 'h-full aspect-square';
+    }
+  };
+
   const getPreviewClass = () => {
       if (isExternal(settings.animationType)) {
           return `animate__animated animate__${settings.animationType}`;
@@ -543,7 +570,7 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen w-screen bg-gray-950 text-white font-sans selection:bg-blue-500 selection:text-white flex flex-col overflow-hidden">
-      <canvas ref={exportCanvasRef} width={1920} height={1080} className="hidden fixed pointer-events-none" />
+      <canvas ref={exportCanvasRef} className="hidden fixed pointer-events-none" />
       <style>{previewStyles}</style>
 
       {isExporting && (
@@ -633,6 +660,19 @@ const App: React.FC = () => {
                     
                     {/* Preview Stage */}
                     <div className="flex-1 bg-black/50 flex flex-col relative p-6 items-center justify-center overflow-hidden select-none">
+                        <div className="absolute top-4 left-4 flex items-center gap-2 z-20">
+                          {(['16:9', '9:16', '1:1'] as const).map(ratio => (
+                            <button
+                              key={ratio}
+                              onClick={() => setAspectRatio(ratio)}
+                              className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${
+                                aspectRatio === ratio ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                              }`}
+                            >
+                              {ratio}
+                            </button>
+                          ))}
+                        </div>
                         <div className="absolute top-4 right-4 font-mono text-xs text-blue-400 bg-blue-950/30 border border-blue-500/20 px-2 py-0.5 rounded-full z-20">
                              {formatTime(currentTime)}
                         </div>
@@ -640,7 +680,7 @@ const App: React.FC = () => {
                          {/* Wrapper for aspect ratio */}
                         <div 
                             ref={previewContainerRef}
-                            className="w-full max-w-3xl aspect-video bg-black rounded-xl border border-gray-800 relative overflow-hidden flex items-center justify-center shadow-2xl shrink-0 group"
+                            className={`bg-black rounded-xl border border-gray-800 relative overflow-hidden flex items-center justify-center shadow-2xl shrink-0 group ${getAspectRatioStyles(aspectRatio)}`}
                              style={{ 
                                 backgroundColor: settings.backgroundColor === 'transparent' ? 'transparent' : settings.backgroundColor,
                                 fontFamily: settings.fontFamily
