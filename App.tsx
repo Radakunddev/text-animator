@@ -736,7 +736,7 @@ const App: React.FC = () => {
                         </div>
 
                         {/* Playback Controls Overlay */}
-                        <div className="mt-6 flex items-center gap-4 bg-gray-900/80 backdrop-blur px-6 py-2 rounded-full border border-gray-800">
+                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-gray-900/80 backdrop-blur px-6 py-2 rounded-full border border-gray-800 z-30">
                              <button 
                                 onClick={() => setIsTransformMode(!isTransformMode)}
                                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
