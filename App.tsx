@@ -44,7 +44,7 @@ const MotionSubtitle: React.FC<{ subtitle: Subtitle, settings: AnimationSettings
         fontWeight: 'bold' as const,
         lineHeight: 1.4,
         textShadow: settings.animationType !== 'neon' ? '2px 2px 4px rgba(0,0,0,0.3)' : undefined,
-        whiteSpace: 'pre-wrap' as const, // CHANGED: pre-wrap allows wrapping
+        whiteSpace: 'nowrap' as const, // CHANGED: pre-wrap allows wrapping
         display: 'block',
         wordBreak: 'break-word' as const
     };
@@ -864,7 +864,7 @@ a.click();
                                                                 lineHeight: 1.4,
                                                                 textAlign: settings.textAlign,
                                                                 textShadow: settings.animationType !== 'neon' ? '2px 2px 4px rgba(0,0,0,0.3)' : undefined,
-                                                                whiteSpace: 'pre-wrap', // CHANGED: Allow wrapping
+                                                                whiteSpace: 'nowrap', // CHANGED: Allow wrapping
                                                                 wordBreak: 'break-word'
                                                             }}
                                                         >
