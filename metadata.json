@@ -1,0 +1,5 @@
+{
+  "name": "SRT to CSS Animator",
+  "description": "A professional tool to convert SRT subtitle files into standalone HTML/CSS kinetic typography animations.",
+  "requestFramePermissions": []
+}
