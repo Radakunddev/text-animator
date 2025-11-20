@@ -353,7 +353,7 @@ export const generateStandaloneHTML = (subtitles: Subtitle[], settings: Animatio
             display: flex;
             flex-direction: column;
             justify-content: center;
-            white-space: nowrap; /* Changed from pre to allow wrapping */
+            white-space: pre-wrap; /* Revert to pre-wrap to allow line breaks */
             word-break: break-word;
             ${settings.animationType !== 'neon' && settings.backgroundColor === 'transparent' ? 'text-shadow: 2px 2px 4px rgba(0,0,0,0.5);' : ''}
             ${settings.animationType !== 'neon' && settings.backgroundColor !== 'transparent' ? 'text-shadow: 2px 2px 4px rgba(0,0,0,0.3);' : ''}

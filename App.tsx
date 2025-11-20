@@ -44,7 +44,7 @@ const MotionSubtitle: React.FC<{ subtitle: Subtitle, settings: AnimationSettings
         fontWeight: 'bold' as const,
         lineHeight: 1.4,
         textShadow: settings.animationType !== 'neon' ? '2px 2px 4px rgba(0,0,0,0.3)' : undefined,
-        whiteSpace: 'nowrap' as const, // CHANGED: pre-wrap allows wrapping
+        whiteSpace: 'pre-wrap' as const, // Revert to pre-wrap to allow line breaks
         display: 'block',
         wordBreak: 'break-word' as const
     };
@@ -445,9 +445,14 @@ const App: React.FC = () => {
     setCurrentTime(0); // Start from beginning
 
     const stream = canvas.captureStream(30);
-    const mimeType = MediaRecorder.isTypeSupported('video/webm; codecs=vp9') 
-        ? 'video/webm; codecs=vp9' 
-        : 'video/webm';
+    
+    let mimeType = 'video/webm';
+    let fileExtension = '.webm';
+
+    if (MediaRecorder.isTypeSupported('video/mp4')) {
+        mimeType = 'video/mp4';
+        fileExtension = '.mp4';
+    }
 
     const mediaRecorder = new MediaRecorder(stream, {
         mimeType: mimeType,
@@ -464,9 +469,9 @@ const App: React.FC = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = fileName.replace('.srt', '') + (settings.backgroundColor === 'transparent' ? '_transparent.webm' : '_video.webm');
+        a.download = fileName.replace('.srt', '') + (settings.backgroundColor === 'transparent' ? `_transparent${fileExtension}` : `_video${fileExtension}`);
         document.body.appendChild(a);
-a.click();
+        a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
@@ -832,7 +837,7 @@ a.click();
                                                 }}
                                             >
                                                 {/* GIZMO / TRANSFORM BOX (Only if selected) */}
-                                                {isTransformMode && isSelected && (
+                                                {isTransformMode && isSelected && !isExporting && (
                                                     <div 
                                                         className="absolute -inset-4 border-2 border-blue-500 border-dashed rounded z-50 cursor-move hover:bg-blue-500/5 transition-colors"
                                                         onMouseDown={(e) => handleGizmoMouseDown(e, subtitle.id, 'move')}
@@ -864,7 +869,7 @@ a.click();
                                                                 lineHeight: 1.4,
                                                                 textAlign: settings.textAlign,
                                                                 textShadow: settings.animationType !== 'neon' ? '2px 2px 4px rgba(0,0,0,0.3)' : undefined,
-                                                                whiteSpace: 'nowrap', // CHANGED: Allow wrapping
+                                                                whiteSpace: 'pre-wrap', // Revert to pre-wrap to allow line breaks
                                                                 wordBreak: 'break-word'
                                                             }}
                                                         >
