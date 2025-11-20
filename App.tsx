@@ -620,7 +620,7 @@ const App: React.FC = () => {
                     currentTime={currentTime} 
                     onSeek={handleSeek}
                     onUpdateSubtitle={handleUpdateSubtitle}
-                    selectedId={selectedSubtitleId || undefined}
+                    selectedId={selectedSubtitleId}
                     onSelect={setSelectedSubtitleId}
                 />
             </div>

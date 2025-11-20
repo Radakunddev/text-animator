@@ -1,5 +1,4 @@
-
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, Dispatch, SetStateAction } from 'react';
 import { Subtitle } from '../types';
 import { Clock, Edit3 } from 'lucide-react';
 
@@ -8,6 +7,8 @@ interface TimelineProps {
   currentTime: number;
   onSeek: (time: number) => void;
   onUpdateSubtitle: (id: string, newText: string) => void;
+  selectedId: string | null;
+  onSelect: Dispatch<SetStateAction<string | null>>;
 }
 
 const formatTimeShort = (seconds: number) => {
@@ -17,7 +18,7 @@ const formatTimeShort = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}.${ms}`;
 };
 
-const Timeline: React.FC<TimelineProps> = ({ subtitles, currentTime, onSeek, onUpdateSubtitle }) => {
+const Timeline: React.FC<TimelineProps> = ({ subtitles, currentTime, onSeek, onUpdateSubtitle, selectedId, onSelect }) => {
   const activeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -59,24 +60,30 @@ const Timeline: React.FC<TimelineProps> = ({ subtitles, currentTime, onSeek, onU
         {subtitles.map((sub, index) => {
           const isActive = activeIds.includes(sub.id);
           const isFirstActive = sub.id === firstActiveId;
+          const isSelected = sub.id === selectedId;
           
           return (
             <div 
               key={sub.id}
               ref={isFirstActive ? activeRef : null}
-              onClick={() => onSeek(sub.startTime)}
+              onClick={() => {
+                onSeek(sub.startTime);
+                onSelect(selectedId === sub.id ? null : sub.id);
+              }}
               className={`group relative p-3 rounded-lg border transition-all cursor-pointer ${
-                isActive 
-                  ? 'bg-blue-950/40 border-blue-500/40 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                  : 'bg-transparent border-transparent hover:bg-gray-900 border-b-gray-800/50'
+                isSelected
+                  ? 'bg-blue-950/70 border-blue-500/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]'
+                  : isActive 
+                    ? 'bg-blue-950/40 border-blue-500/40' 
+                    : 'bg-transparent border-transparent hover:bg-gray-900 border-b-gray-800/50'
               }`}
             >
               <div className="flex flex-col gap-1">
                 <div className="flex justify-between items-center mb-1">
-                    <span className={`font-mono text-[9px] font-bold opacity-70 ${isActive ? 'text-blue-400' : 'text-gray-500'}`}>
+                    <span className={`font-mono text-[9px] font-bold opacity-70 ${isActive || isSelected ? 'text-blue-400' : 'text-gray-500'}`}>
                         {formatTimeShort(sub.startTime)}
                     </span>
-                     {isActive && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>}
+                     {(isActive || isSelected) && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>}
                 </div>
 
                 <div className="relative">
@@ -84,7 +91,7 @@ const Timeline: React.FC<TimelineProps> = ({ subtitles, currentTime, onSeek, onU
                     value={sub.text}
                     onChange={(e) => onUpdateSubtitle(sub.id, e.target.value)}
                     className={`w-full bg-transparent resize-none outline-none text-xs font-medium leading-relaxed transition-colors ${
-                      isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'
+                      isActive || isSelected ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'
                     }`}
                     rows={Math.max(1, sub.text.split('\n').length)}
                     spellCheck={false}
@@ -92,7 +99,7 @@ const Timeline: React.FC<TimelineProps> = ({ subtitles, currentTime, onSeek, onU
                   />
                   <Edit3 
                     size={10} 
-                    className={`absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? 'text-blue-500' : 'text-gray-600'}`} 
+                    className={`absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity ${isActive || isSelected ? 'text-blue-500' : 'text-gray-600'}`} 
                   />
                 </div>
               </div>
