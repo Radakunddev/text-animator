@@ -150,6 +150,13 @@ const MotionSubtitle: React.FC<{ subtitle: Subtitle, settings: AnimationSettings
     return null;
 };
 
+interface DraggedItem {
+  id: string;
+  initialX: number;
+  initialY: number;
+  initialScale: number;
+}
+
 const App: React.FC = () => {
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
   const [fileName, setFileName] = useState<string>('');
@@ -169,12 +176,12 @@ const App: React.FC = () => {
   
   // Track which subtitle we are actively dragging
   const [dragState, setDragState] = useState<{ 
-      id: string,
       mode: 'move' | 'scale',
-      startX: number, y: number, 
-      initialX: number, initialY: number, 
-      initialScale: number,
-      centerX: number, centerY: number
+      startX: number,
+      y: number,
+      items: DraggedItem[],
+      centerX: number,
+      centerY: number
   } | null>(null);
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
@@ -323,6 +330,17 @@ const App: React.FC = () => {
 
   const handleTimingUpdate = (id: string, newStart: number, newEnd: number) => {
       setSubtitles(prev => prev.map(s => s.id === id ? { ...s, startTime: newStart, endTime: newEnd } : s));
+  };
+
+  const handlePropertyChange = (property: keyof Subtitle, value: any) => {
+    if (selectedSubtitleIds.length === 0) return;
+    setSubtitles(prev =>
+        prev.map(s =>
+            selectedSubtitleIds.includes(s.id)
+                ? { ...s, [property]: value }
+                : s
+        )
+    );
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -486,94 +504,95 @@ const App: React.FC = () => {
     if (!isTransformMode || !previewContainerRef.current) return;
     e.stopPropagation();
     e.preventDefault();
-    
-    // We need the element's RECT to determine the center for scaling
+
     const target = (e.currentTarget as HTMLElement).closest('.gizmo-container');
     if (!target) return;
 
     const rect = target.getBoundingClientRect();
-    const centerX = rect.left + (rect.width / 2);
-    const centerY = rect.top + (rect.height / 2);
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
 
-    const sub = subtitles.find(s => s.id === subId);
-    if (!sub) return;
+    const itemsToDrag = subtitles
+      .filter(s => selectedSubtitleIds.includes(s.id))
+      .map(s => ({
+        id: s.id,
+        initialX: s.x ?? 0,
+        initialY: s.y ?? 0,
+        initialScale: s.scale ?? 1,
+      }));
 
-    const currentX = sub.x !== undefined ? sub.x : 0;
-    const currentY = sub.y !== undefined ? sub.y : 0;
-    const currentScale = sub.scale !== undefined ? sub.scale : 1;
+    if (itemsToDrag.length === 0) return;
 
     setDragState({
-        id: subId,
-        mode,
-        startX: e.clientX,
-        y: e.clientY,
-        initialX: currentX,
-        initialY: currentY,
-        initialScale: currentScale,
-        centerX,
-        centerY
+      mode,
+      startX: e.clientX,
+      y: e.clientY,
+      items: itemsToDrag,
+      centerX,
+      centerY
     });
   };
 
   useEffect(() => {
     const handleWindowMouseMove = (e: MouseEvent) => {
-        if (!dragState || !previewContainerRef.current) return;
+      if (!dragState || !previewContainerRef.current) return;
 
-        const containerWidth = previewContainerRef.current.offsetWidth;
-        const containerHeight = previewContainerRef.current.offsetHeight;
+      const containerWidth = previewContainerRef.current.offsetWidth;
+      const containerHeight = previewContainerRef.current.offsetHeight;
 
-        if (dragState.mode === 'move') {
-            const deltaX = e.clientX - dragState.startX;
-            const deltaY = e.clientY - dragState.y;
-            
-            // Convert px delta to percentage of container
-            const percentX = (deltaX / containerWidth) * 100;
-            const percentY = (deltaY / containerHeight) * 100;
+      if (dragState.mode === 'move') {
+        const deltaX = (e.clientX - dragState.startX) / containerWidth * 100;
+        const deltaY = (e.clientY - dragState.y) / containerHeight * 100;
 
-            setSubtitles(prev => prev.map(s => {
-                if (s.id === dragState.id) {
-                    return {
-                        ...s,
-                        x: dragState.initialX + percentX,
-                        y: dragState.initialY + percentY
-                    };
-                }
-                return s;
-            }));
+        setSubtitles(prev =>
+          prev.map(s => {
+            const dragItem = dragState.items.find(item => item.id === s.id);
+            if (dragItem) {
+              return {
+                ...s,
+                x: dragItem.initialX + deltaX,
+                y: dragItem.initialY + deltaY,
+              };
+            }
+            return s;
+          })
+        );
+      } else if (dragState.mode === 'scale') {
+        const currentDist = Math.hypot(e.clientX - dragState.centerX, e.clientY - dragState.centerY);
+        const startDist = Math.hypot(dragState.startX - dragState.centerX, dragState.y - dragState.centerY);
+        
+        if (startDist === 0) return;
 
-        } else if (dragState.mode === 'scale') {
-            // Distance based scaling from center
-            const currentDist = Math.hypot(e.clientX - dragState.centerX, e.clientY - dragState.centerY);
-            const startDist = Math.hypot(dragState.startX - dragState.centerX, dragState.y - dragState.centerY);
-            
-            if (startDist === 0) return;
-
-            const scaleFactor = currentDist / startDist;
-            const newScale = Math.max(0.1, dragState.initialScale * scaleFactor);
-            
-            setSubtitles(prev => prev.map(s => {
-                if (s.id === dragState.id) {
-                    return { ...s, scale: newScale };
-                }
-                return s;
-            }));
-        }
+        const scaleFactor = currentDist / startDist;
+        
+        setSubtitles(prev =>
+          prev.map(s => {
+            const dragItem = dragState.items.find(item => item.id === s.id);
+            if (dragItem) {
+              return { ...s, scale: Math.max(0.1, dragItem.initialScale * scaleFactor) };
+            }
+            return s;
+          })
+        );
+      }
     };
 
     const handleWindowMouseUp = () => {
-        setDragState(null);
+      setDragState(null);
     };
 
     if (dragState) {
-        window.addEventListener('mousemove', handleWindowMouseMove);
-        window.addEventListener('mouseup', handleWindowMouseUp);
+      window.addEventListener('mousemove', handleWindowMouseMove);
+      window.addEventListener('mouseup', handleWindowMouseUp);
     }
 
     return () => {
-        window.removeEventListener('mousemove', handleWindowMouseMove);
-        window.removeEventListener('mouseup', handleWindowMouseUp);
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
     };
   }, [dragState]);
+
+  const [clipboard, setClipboard] = useState<{ type: 'subtitle-properties', properties: Partial<Omit<Subtitle, 'id' | 'text' | 'startTime' | 'endTime'>> } | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -583,6 +602,29 @@ const App: React.FC = () => {
                     e.preventDefault();
                     setSelectedSubtitleIds(subtitles.map(s => s.id));
                     break;
+                case 'c':
+                    e.preventDefault();
+                    const lastSelected = subtitles.find(s => s.id === lastSelectedId);
+                    if (lastSelected) {
+                        const { x, y, scale } = lastSelected;
+                        setClipboard({
+                            type: 'subtitle-properties',
+                            properties: { x, y, scale }
+                        });
+                    }
+                    break;
+                case 'v':
+                    e.preventDefault();
+                    if (clipboard && clipboard.type === 'subtitle-properties' && selectedSubtitleIds.length > 0) {
+                        setSubtitles(prev =>
+                            prev.map(s =>
+                                selectedSubtitleIds.includes(s.id)
+                                    ? { ...s, ...clipboard.properties }
+                                    : s
+                            )
+                        );
+                    }
+                    break;
             }
         }
     };
@@ -591,7 +633,7 @@ const App: React.FC = () => {
     return () => {
         document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [subtitles]);
+  }, [subtitles, lastSelectedId, clipboard, selectedSubtitleIds]);
 
 
 
@@ -856,6 +898,7 @@ const App: React.FC = () => {
                         <PropertiesPanel
                             subtitles={subtitles}
                             selectedSubtitleIds={selectedSubtitleIds}
+                            onPropertyChange={handlePropertyChange}
                         />
                     </div>
 
@@ -881,3 +924,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+
