@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import html2canvas from 'html2canvas';
 import { parseSRT } from './utils/srtParser';
 import { generateStandaloneHTML } from './utils/htmlGenerator';
-import { renderFrame } from './utils/canvasRenderer';
 import { Subtitle, AnimationSettings, AnimationType, CustomFont } from './types';
 import { Upload, Play, Pause, Download, FileText, RefreshCw, Move } from './components/Icons';
 import ControlPanel from './components/ControlPanel';
@@ -424,32 +424,25 @@ const App: React.FC = () => {
   };
 
   const handleVideoExport = async () => {
-    if (!exportCanvasRef.current) return;
+    if (!exportCanvasRef.current || !previewContainerRef.current) return;
+    
+    const exportElement = previewContainerRef.current;
     const canvas = exportCanvasRef.current;
 
-    // Set canvas dimensions based on aspect ratio
-    const baseRes = 1080;
-    switch (aspectRatio) {
-        case '16:9':
-            canvas.width = 1920;
-            canvas.height = 1080;
-            break;
-        case '9:16':
-            canvas.width = 1080;
-            canvas.height = 1920;
-            break;
-        case '1:1':
-            canvas.width = 1080;
-            canvas.height = 1080;
-            break;
-    }
-
+    // Set canvas dimensions based on the preview element for 1:1 rendering
+    canvas.width = exportElement.offsetWidth;
+    canvas.height = exportElement.offsetHeight;
+    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     setIsExporting(true);
     setExportProgress(0);
     pausePlayback();
+    
+    // Store original time to revert back
+    const originalTime = currentTime;
+    setCurrentTime(0); // Start from beginning
 
     const stream = canvas.captureStream(30);
     const mimeType = MediaRecorder.isTypeSupported('video/webm; codecs=vp9') 
@@ -458,7 +451,7 @@ const App: React.FC = () => {
 
     const mediaRecorder = new MediaRecorder(stream, {
         mimeType: mimeType,
-        videoBitsPerSecond: 5000000 
+        videoBitsPerSecond: 8000000 // Increased bit rate for better quality
     });
 
     const chunks: Blob[] = [];
@@ -471,29 +464,48 @@ const App: React.FC = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = fileName.replace('.srt', '') + (settings.backgroundColor === 'transparent' ? '_transparent.mov' : '_video.mov');
+        a.download = fileName.replace('.srt', '') + (settings.backgroundColor === 'transparent' ? '_transparent.webm' : '_video.webm');
         document.body.appendChild(a);
-        a.click();
+a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        
         setIsExporting(false);
+        setCurrentTime(originalTime); // Revert to original time
     };
 
     mediaRecorder.start();
 
     const fps = 30;
-    const frameInterval = 1000 / fps;
-    let renderTime = 0;
     const totalFrames = Math.ceil(duration * fps);
-
+    
     for (let i = 0; i <= totalFrames; i++) {
-        renderTime = i / fps;
+        const renderTime = i / fps;
+        
+        // Update state and wait for next frame to ensure DOM is updated
+        setCurrentTime(renderTime);
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
+        // Capture the DOM element
+        const capturedCanvas = await html2canvas(exportElement, {
+            backgroundColor: null, // Use transparent background for capture
+            allowTaint: true,
+            useCORS: true,
+            logging: false,
+            // Match canvas dimensions to avoid scaling issues
+            width: canvas.width,
+            height: canvas.height,
+            scale: 1 
+        });
+
+        // Draw captured image onto our main export canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(capturedCanvas, 0, 0, canvas.width, canvas.height);
+        
+        // Update progress (throttled)
         if (i % 5 === 0) {
             setExportProgress(Math.round((i / totalFrames) * 100));
-            await new Promise(resolve => setTimeout(resolve, 0)); 
         }
-        renderFrame(ctx, canvas.width, canvas.height, subtitles, renderTime, settings);
-        await new Promise(resolve => setTimeout(resolve, frameInterval)); 
     }
 
     mediaRecorder.stop();
