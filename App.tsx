@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import { parseSRT } from './utils/srtParser';
 import { generateStandaloneHTML } from './utils/htmlGenerator';
 import { Subtitle, AnimationSettings, AnimationType, CustomFont } from './types';
+import { generatePremiereXML, generateDaVinciFusion } from './utils/exportGenerators';
 import { Upload, Play, Pause, Download, FileText, RefreshCw, Move } from './components/Icons';
 import ControlPanel from './components/ControlPanel';
 import Timeline from './components/Timeline';
@@ -168,6 +169,29 @@ const App: React.FC = () => {
 
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [showExportOptions, setShowExportOptions] = useState(false);
+
+  const downloadFile = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePremiereExport = () => {
+    const xml = generatePremiereXML(subtitles, settings, fileName.replace('.srt', ''));
+    downloadFile(xml, fileName.replace('.srt', '') + '_premiere.xml', 'text/xml');
+  };
+
+  const handleDaVinciExport = () => {
+    const fusion = generateDaVinciFusion(subtitles, settings);
+    downloadFile(fusion, fileName.replace('.srt', '') + '_fusion.setting', 'text/plain');
+  };
 
   // Load sample subtitles for testing if empty
   useEffect(() => {
@@ -760,9 +784,9 @@ Exported with Puppeteer.`;
                   <FileText size={14} className="text-blue-400" />
                   <span>HTML</span>
                 </button>
-                <button onClick={handleVideoExport} className="flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 rounded-lg text-xs font-medium transition-all shadow-lg shadow-blue-900/20">
+                <button onClick={() => setShowExportOptions(true)} className="flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 rounded-lg text-xs font-medium transition-all shadow-lg shadow-blue-900/20">
                   <Download size={14} />
-                  <span>Render</span>
+                  <span>Export</span>
                 </button>
               </>
             )}
@@ -770,7 +794,54 @@ Exported with Puppeteer.`;
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col min-h-0">
+      <main className="flex-1 flex flex-col min-h-0 relative">
+        {showExportOptions && (
+          <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center" onClick={() => setShowExportOptions(false)}>
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-96 shadow-2xl" onClick={e => e.stopPropagation()}>
+              <h3 className="text-xl font-bold text-white mb-4">Export Options</h3>
+              <div className="space-y-3">
+                <button onClick={() => { setShowExportOptions(false); handleVideoExport(); }} className="w-full flex items-center justify-between p-4 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors group">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 group-hover:text-blue-300">
+                      <Download size={20} />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-medium text-white">Render Video</div>
+                      <div className="text-xs text-gray-400">MP4 / WebM</div>
+                    </div>
+                  </div>
+                </button>
+
+                <button onClick={() => { setShowExportOptions(false); handlePremiereExport(); }} className="w-full flex items-center justify-between p-4 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors group">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 group-hover:text-purple-300">
+                      <FileText size={20} />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-medium text-white">Premiere Pro</div>
+                      <div className="text-xs text-gray-400">FCP7 XML Preset</div>
+                    </div>
+                  </div>
+                </button>
+
+                <button onClick={() => { setShowExportOptions(false); handleDaVinciExport(); }} className="w-full flex items-center justify-between p-4 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors group">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center text-orange-400 group-hover:text-orange-300">
+                      <FileText size={20} />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-medium text-white">DaVinci Resolve</div>
+                      <div className="text-xs text-gray-400">Fusion Macro (.setting)</div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+              <button onClick={() => setShowExportOptions(false)} className="mt-6 w-full py-2 text-sm text-gray-500 hover:text-white transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         {subtitles.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6 border-2 border-dashed border-gray-800 m-8 rounded-3xl bg-gray-900/20">
             <div className="w-24 h-24 bg-gray-800/50 rounded-3xl flex items-center justify-center mb-4 ring-1 ring-gray-700">
